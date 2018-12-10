@@ -6,7 +6,9 @@ import json
 from chat_utils import *
 import client_state_machine as csm
 
-import tkinter as tk
+import GUIchat_system as gui
+
+
 
 import threading
 
@@ -19,6 +21,12 @@ class Client:
         self.local_msg = ''
         self.peer_msg = ''
         self.args = args
+        
+        self.name=''
+        
+        
+        
+        
 
     def quit(self):
         self.socket.shutdown(socket.SHUT_RDWR)
@@ -57,15 +65,27 @@ class Client:
         return my_msg, peer_msg
 
     def output(self):
-        if len(self.system_msg) > 0:
-            print(self.system_msg)
-            self.system_msg = ''
+        if self.sm.get_state()!=S_OFFLINE:
+            if len(self.system_msg) > 0:
+                self.log.chat.txtMsgList.insert(END,self.system_msg)
+                self.system_msg = ''
+            try:
+                self.log.log_w.update()
+            except:
+                pass
+            try:
+                self.log.chat.window.update()
+            except:
+                pass
+        
+            
+    
 
     def login(self):
         my_msg, peer_msg = self.get_msgs()
         if len(my_msg) > 0:
             self.name = my_msg
-            msg = json.dumps({"action":"login", "name":self.name})
+            msg = json.dumps({"action":"log", "name":self.name})
             self.send(msg)
             response = json.loads(self.recv())
             if response["status"] == 'ok':
@@ -80,24 +100,42 @@ class Client:
         else:               # fix: dup is only one of the reasons
            return(False)
 
-
-    def read_input(self):
-        while True:
-            text = sys.stdin.readline()[:-1]
-            self.console_input.append(text) # no need for lock, append is thread safe
-
+    
+    '''def log_and_return_name(self):
+        if log(self):
+            self.name = self.logMsg.get('0.0',END)
+            self.window.destroy()'''
+            
+    def read_input(self):                           #if state = LOGGED_IN and state = CHATTING
+        if self.state == S_OFFLINE:
+            try:
+                while self.log.get_name()=='':
+                    continue
+                self.name = self.log.get_name()
+                text = self.name
+                self.console_input.append(text) # no need for lock, append is thread safe
+                self.log.log_w.destroy()
+            except:
+                pass
+        elif self.state == S_LOGGEDIN or S_CHATTING:
+            try:
+                if self.log.chat.message!='':
+                    text = self.log.chat.message
+                    self.log.chat.message=''
+                    self.console_input.append(text)
+            except:
+                pass
     def print_instructions(self):
         self.system_msg += menu
 
     def run_chat(self):
         self.init_chat()
-        self.system_msg += 'Welcome to ICS chat\n'
-        self.system_msg += 'Please enter your name: '
-        self.output()
-        while self.login() != True:
-            self.output()
+        self.log = gui.Login()
         self.system_msg += 'Welcome, ' + self.get_name() + '!'
         self.output()
+        while self.sm.get_state() == S_OFFLINE:
+            self.output()
+        self.login()
         while self.sm.get_state() != S_OFFLINE:
             self.proc()
             self.output()
