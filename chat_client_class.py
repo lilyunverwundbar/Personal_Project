@@ -19,7 +19,6 @@ class Client:
         self.local_msg = ''
         self.peer_msg = ''
         self.args = args
-        self.lock = False
 
     def quit(self):
         self.socket.shutdown(socket.SHUT_RDWR)
@@ -115,7 +114,7 @@ class Client:
                 except IndexError:
                     pass
                 print('this is input', text)
-                self.console_input.append(text)  # no need for lock, append is thread safe
+                self.console_input.append(text)
                 self.gui.new_message = ''
                 continue
 
